@@ -1,49 +1,49 @@
 # Rectmangle
 
-Fenster per Tastenkürzel anordnen, angelehnt an [Rectangle](https://rectangleapp.com). Klein, ohne Netzwerk, ohne Lizenzprüfung, ohne Updater. Eine Konfigurationsdatei statt Einstellungsfenster.
+Arrange windows with keyboard shortcuts, modelled on [Rectangle](https://rectangleapp.com). Small, no network access, no license check, no updater. One config file instead of a settings window.
 
-- Hälften, Viertel, Drittel, Maximieren, Nahezu maximieren, Höhe maximieren, Vergrößern, Verkleinern, Zentrieren, Wiederherstellen
-- Nächster und vorheriger Bildschirm, der Mauszeiger wandert mit
-- Linke oder rechte Hälfte ein zweites Mal gedrückt: Das Fenster rutscht auf den Bildschirm daneben (wie Rectangle mit „Subsequent execution: across displays“)
-- Wiederherstellen setzt das Fenster auf die Größe vor dem ersten Kürzel zurück
-- Beim Anmelden starten, Symbol in der Menüleiste ein- oder ausblendbar
+- Halves, quarters, thirds, maximize, almost maximize, maximize height, larger, smaller, center, restore
+- Next and previous display, the mouse pointer follows the window
+- Pressing left or right half a second time moves the window on to the neighbouring display (like Rectangle with "Subsequent execution: across displays")
+- Restore puts the window back to its size and position from before the first shortcut
+- Launch at login, menu bar icon can be hidden
 
-Nicht dabei: Schnappbereiche beim Ziehen an den Rand, Abstände zwischen Fenstern, Ausnahmen je App.
+Not included: snap areas when dragging to the screen edge, gaps between windows, per-app exceptions.
 
-## Herunterladen
+## Download
 
-Per Homebrew (entfernt die Quarantäne-Markierung selbst):
+With Homebrew (the cask removes the quarantine flag itself):
 
 ```sh
 brew trust --cask wiredframe/tap/rectmangle
 brew install --cask wiredframe/tap/rectmangle
 ```
 
-Oder von Hand: unter [Releases](https://github.com/Wiredframe/rectmangle/releases) liegt die fertige App als ZIP. Auspacken, nach `~/Applications` oder `/Applications` legen. Sie ist mit Developer ID signiert, aber nicht notarisiert, deshalb blockiert macOS den ersten Start. Abhilfe:
+Or by hand: the [releases](https://github.com/Wiredframe/rectmangle/releases) contain the app as a ZIP. Unpack it and move it to `~/Applications` or `/Applications`. It is signed with a Developer ID but not notarized, so macOS blocks the first launch. To allow it:
 
 ```sh
-xattr -dr com.apple.quarantine ~/Applications/Rectmangle.app
+xattr -dr com.apple.quarantine /Applications/Rectmangle.app
 ```
 
-## Bauen und installieren
+## Build and install
 
-Braucht einen Mac mit Apple Silicon, macOS 13 oder neuer und die Command Line Tools von Xcode (Swift 5.9 oder neuer).
+Needs a Mac with Apple Silicon, macOS 13 or later and the Xcode Command Line Tools (Swift 5.9 or later).
 
 ```sh
-./build.sh            # baut build/Rectmangle.app
-./build.sh --install  # zusätzlich nach ~/Applications und starten
-./build.sh --zip      # zusätzlich build/Rectmangle-<version>.zip für ein Release
+./build.sh            # builds build/Rectmangle.app
+./build.sh --install  # also copies it to ~/Applications and launches it
+./build.sh --zip      # also packs build/Rectmangle-<version>.zip for a release
 ```
 
-Beim ersten Start fragt macOS nach der Freigabe unter **Systemeinstellungen › Datenschutz & Sicherheit › Bedienungshilfen**. Ohne sie lassen sich fremde Fenster nicht bewegen.
+On first launch macOS asks for access under **System Settings › Privacy & Security › Accessibility**. Without it, other apps' windows cannot be moved.
 
-Die Freigabe hängt an der Code-Signatur. `build.sh` nimmt ein vorhandenes „Developer ID Application“-Zertifikat, dann bleibt sie über neue Builds erhalten. Ohne Zertifikat wird ad hoc signiert, dann muss die Freigabe nach jedem Build neu erteilt werden (alten Eintrag vorher mit „−“ entfernen). Ein anderes Zertifikat lässt sich mit `SIGN_IDENTITY="…" ./build.sh` wählen.
+That access is tied to the code signature. `build.sh` uses a "Developer ID Application" certificate if there is one, then access survives new builds. Without a certificate the app is signed ad hoc and access has to be granted again after every build (remove the old entry with "−" first). Pick another certificate with `SIGN_IDENTITY="…" ./build.sh`.
 
-Läuft Rectangle noch, gehören ihm die Kürzel. Vorher beenden.
+While Rectangle is running, it owns the shortcuts. Quit it first.
 
-## Konfiguration
+## Configuration
 
-`~/.config/rectmangle/config.json`, wird beim ersten Start angelegt. Änderungen gelten sofort nach dem Speichern. Ohne Menüleistensymbol öffnet ein erneuter Start der App (`open -a Rectmangle`) die Datei.
+`~/.config/rectmangle/config.json`, created on first launch. Changes apply as soon as the file is saved. Without the menu bar icon, launching the app again (`open -a Rectmangle`) opens the file.
 
 ```json
 {
@@ -62,53 +62,53 @@ Läuft Rectangle noch, gehören ihm die Kürzel. Vorher beenden.
 }
 ```
 
-**Kürzel** bestehen aus Sondertasten und einer Taste:
+**Shortcuts** are modifiers plus one key:
 
-- Sondertasten als Zeichen `⌃ ⌥ ⇧ ⌘` oder als Wörter `ctrl`, `opt`/`alt`, `shift`, `cmd`, verbunden mit `+`
-- Tasten: `← → ↑ ↓` bzw. `left right up down`, `return`, `tab`, `space`, `delete`, `escape`, `home`, `end`, `pageup`, `pagedown`, `f1` bis `f12`
-- jedes andere Zeichen wird über die aktuelle Tastaturbelegung gesucht, `+` meint also die Taste, auf der `+` steht
-- `#30` für einen rohen Tastencode
-- leerer Text: kein Kürzel
+- modifiers as symbols `⌃ ⌥ ⇧ ⌘` or as words `ctrl`, `opt`/`alt`, `shift`, `cmd`, joined with `+`
+- keys: `← → ↑ ↓` or `left right up down`, `return`, `tab`, `space`, `delete`, `escape`, `home`, `end`, `pageup`, `pagedown`, `f1` to `f12`
+- any other character is looked up in the current keyboard layout, so `+` means the key that types `+`
+- `#30` for a raw key code
+- empty text: no shortcut
 
-**Aktionen:** `leftHalf`, `rightHalf`, `centerHalf`, `topHalf`, `bottomHalf`, `topLeft`, `topRight`, `bottomLeft`, `bottomRight`, `firstThird`, `centerThird`, `lastThird`, `firstTwoThirds`, `lastTwoThirds`, `maximize`, `almostMaximize`, `maximizeHeight`, `larger`, `smaller`, `center`, `restore`, `nextDisplay`, `previousDisplay`.
+**Actions:** `leftHalf`, `rightHalf`, `centerHalf`, `topHalf`, `bottomHalf`, `topLeft`, `topRight`, `bottomLeft`, `bottomRight`, `firstThird`, `centerThird`, `lastThird`, `firstTwoThirds`, `lastTwoThirds`, `maximize`, `almostMaximize`, `maximizeHeight`, `larger`, `smaller`, `center`, `restore`, `nextDisplay`, `previousDisplay`.
 
-**Weitere Schlüssel:**
+**Other keys:**
 
-| Schlüssel | Bedeutung |
+| Key | Meaning |
 |---|---|
-| `almostMaximize` | Anteil von Breite und Höhe für „Nahezu maximieren“ |
-| `sizeStep` | Pixel je Schritt bei Vergrößern und Verkleinern |
-| `halvesAcrossDisplays` | Hälfte erneut drücken wechselt den Bildschirm |
-| `moveCursorAcrossDisplays` | Mauszeiger folgt dem Fenster auf einen anderen Bildschirm |
-| `menuBarIcon` | Symbol in der Menüleiste |
-| `launchAtLogin` | beim Anmelden starten |
+| `almostMaximize` | share of width and height for "almost maximize" |
+| `sizeStep` | pixels per step for larger and smaller |
+| `halvesAcrossDisplays` | pressing a half again moves to the next display |
+| `moveCursorAcrossDisplays` | the mouse pointer follows the window to another display |
+| `menuBarIcon` | icon in the menu bar |
+| `launchAtLogin` | launch at login |
 
-Prüfen, wie die Datei verstanden wird:
+Check how the file is understood:
 
 ```sh
-~/Applications/Rectmangle.app/Contents/MacOS/Rectmangle --check
+/Applications/Rectmangle.app/Contents/MacOS/Rectmangle --check
 ```
 
-Beenden ohne Menüleistensymbol: `pkill -x Rectmangle`.
+Quit without the menu bar icon: `pkill -x Rectmangle`.
 
-## Aus Skripten aufrufen
+## Scripting
 
-Jede Aktion lässt sich per URL auslösen, etwa aus Raycast, Alfred oder der App Kurzbefehle:
+Every action can be triggered by URL, for example from Raycast, Alfred or the Shortcuts app:
 
 ```sh
 open -g rectmangle://leftHalf
 ```
 
-Das Schema kann jede App auf dem Mac aufrufen, eine Website nur nach Rückfrage des Browsers. Mehr als Fenster des aktiven Programms verschieben lässt sich darüber nicht.
+Any app on the Mac can call the scheme, a website only after the browser asks. It can do nothing beyond moving the active app's window.
 
-## Privatsphäre
+## Privacy
 
-Rectmangle enthält keinen Netzwerkcode:
+Rectmangle contains no networking code:
 
 ```sh
-otool -L ~/Applications/Rectmangle.app/Contents/MacOS/Rectmangle   # kein CFNetwork, kein Network.framework
+otool -L /Applications/Rectmangle.app/Contents/MacOS/Rectmangle   # no CFNetwork, no Network.framework
 ```
 
-## Lizenz
+## License
 
 MIT

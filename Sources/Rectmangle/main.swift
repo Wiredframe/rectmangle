@@ -10,13 +10,13 @@ if CommandLine.arguments.contains("--check") {
             guard !text.isEmpty else { continue }
             do {
                 let s = try Shortcut(parsing: text, layout: layout)
-                print("\(action.rawValue): \(text) → Tastencode \(s.keyCode), Sondertasten \(s.modifiers)")
+                print("\(action.rawValue): \(text) → key code \(s.keyCode), modifiers \(s.modifiers)")
             } catch {
-                print("\(action.rawValue): FEHLER \(error.localizedDescription)")
+                print("\(action.rawValue): ERROR \(error.localizedDescription)")
             }
         }
         for name in config.shortcuts.keys where Action(rawValue: name) == nil {
-            print("\(name): FEHLER unbekannte Aktion")
+            print("\(name): ERROR unknown action")
         }
         exit(0)
     } catch {

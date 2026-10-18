@@ -52,7 +52,7 @@ struct Shortcut {
                 break
             }
         }
-        guard mods != 0 else { throw ParseError(errorDescription: "„\(text)“ braucht mindestens eine Sondertaste (⌃⌥⇧⌘)") }
+        guard mods != 0 else { throw ParseError(errorDescription: "\"\(text)\" needs at least one modifier (⌃⌥⇧⌘)") }
 
         let key = rest.lowercased()
         let code: UInt32? = if let named = Self.namedKeys[key] {
@@ -63,7 +63,7 @@ struct Shortcut {
             // On layouts without an unshifted "+" (US), fall back to the "=" key like Rectangle does.
             layout[key] ?? (key == "+" ? layout["="] : nil)
         }
-        guard let code else { throw ParseError(errorDescription: "unbekannte Taste „\(rest)“ in „\(text)“") }
+        guard let code else { throw ParseError(errorDescription: "unknown key \"\(rest)\" in \"\(text)\"") }
         keyCode = code
         modifiers = UInt32(mods)
     }

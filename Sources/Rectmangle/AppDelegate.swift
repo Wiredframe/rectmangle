@@ -42,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             config = try Config.load()
         } catch {
-            showAlert("\(Config.url.path) ließ sich nicht lesen", error.localizedDescription)
+            showAlert("Could not read \(Config.url.path)", error.localizedDescription)
             return
         }
 
@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         for (name, text) in config.shortcuts.sorted(by: { $0.key < $1.key }) {
             guard let action = Action(rawValue: name) else {
-                problems.append("Unbekannte Aktion „\(name)“")
+                problems.append("Unknown action \"\(name)\"")
                 continue
             }
             if text.trimmingCharacters(in: .whitespaces).isEmpty { continue }
@@ -62,11 +62,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let shortcut = try Shortcut(parsing: text, layout: layout)
                 let key = "\(shortcut.keyCode)/\(shortcut.modifiers)"
                 if let other = used[key] {
-                    problems.append("\(name): \(text) ist schon für \(other) vergeben")
+                    problems.append("\(name): \(text) is already used for \(other)")
                 } else if hotKeys.register(shortcut, handler: { [weak self] in self?.windows.perform(action) }) {
                     used[key] = name
                 } else {
-                    problems.append("\(name): \(text) ist schon von einer anderen App belegt")
+                    problems.append("\(name): \(text) is already taken by another app")
                 }
             } catch {
                 problems.append("\(name): \(error.localizedDescription)")
@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateLoginItem(enabled: config.launchAtLogin)
 
         if !problems.isEmpty {
-            showAlert("Einige Kurzbefehle sind nicht aktiv", problems.joined(separator: "\n"))
+            showAlert("Some shortcuts are not active", problems.joined(separator: "\n"))
         }
     }
 
@@ -146,13 +146,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if !AXIsProcessTrusted() {
-            menu.addItem(withTitle: "Bedienungshilfen freigeben …", action: #selector(grantAccess), keyEquivalent: "").target = self
+            menu.addItem(withTitle: "Grant Accessibility Access…", action: #selector(grantAccess), keyEquivalent: "").target = self
             menu.addItem(.separator())
         }
-        menu.addItem(withTitle: "Konfiguration bearbeiten …", action: #selector(openConfig), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "Konfiguration neu laden", action: #selector(reloadFromMenu), keyEquivalent: "r").target = self
+        menu.addItem(withTitle: "Edit Config…", action: #selector(openConfig), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: "Reload Config", action: #selector(reloadFromMenu), keyEquivalent: "r").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Rectmangle beenden", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Rectmangle", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
 
     private func updateLoginItem(enabled: Bool) {
