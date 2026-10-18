@@ -12,7 +12,14 @@ Nicht dabei: Schnappbereiche beim Ziehen an den Rand, Abstände zwischen Fenster
 
 ## Herunterladen
 
-Unter [Releases](https://github.com/Wiredframe/rectmangle/releases) liegt die fertige App als ZIP. Auspacken, nach `~/Applications` oder `/Applications` legen. Sie ist mit Developer ID signiert, aber nicht notarisiert, deshalb blockiert macOS den ersten Start. Abhilfe:
+Per Homebrew (entfernt die Quarantäne-Markierung selbst):
+
+```sh
+brew trust --cask wiredframe/tap/rectmangle
+brew install --cask wiredframe/tap/rectmangle
+```
+
+Oder von Hand: unter [Releases](https://github.com/Wiredframe/rectmangle/releases) liegt die fertige App als ZIP. Auspacken, nach `~/Applications` oder `/Applications` legen. Sie ist mit Developer ID signiert, aber nicht notarisiert, deshalb blockiert macOS den ersten Start. Abhilfe:
 
 ```sh
 xattr -dr com.apple.quarantine ~/Applications/Rectmangle.app
