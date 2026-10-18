@@ -2,14 +2,15 @@
 
 # Rectmangle
 
-Arrange windows with keyboard shortcuts, modelled on [Rectangle](https://rectangleapp.com). Small, no network access, no license check, no updater. One config file instead of a settings window.
+Arrange windows with keyboard shortcuts, modelled on [Rectangle](https://rectangleapp.com). Small, no network access, no license check, no updater. A settings window to record shortcuts, backed by one plain config file.
 
 - Halves, quarters, thirds, maximize, almost maximize, maximize height, larger, smaller, center, restore
 - Next and previous display, the mouse pointer follows the window
 - Pressing left or right half a second time moves the window on to the neighbouring display (like Rectangle with "Subsequent execution: across displays")
 - Restore puts the window back to its size and position from before the first shortcut
+- Settings window like Rectangle's: click a field, press the keys
 - Menu bar menu with every action and its shortcut, launch at login, icon can be hidden
-- Menu in English and German, following the system language
+- English and German, following the system language
 
 Not included: snap areas when dragging to the screen edge, gaps between windows, per-app exceptions.
 
@@ -44,9 +45,18 @@ That access is tied to the code signature. `build.sh` uses a "Developer ID Appli
 
 While Rectangle is running, it owns the shortcuts. Quit it first.
 
-## Configuration
+## Settings
 
-`~/.config/rectmangle/config.json`, created on first launch. Changes apply as soon as the file is saved. "Launch at Login" and "Hide Menu Bar Icon" in the menu write to the same file. With the icon hidden, launching the app again (Finder, `open -a Rectmangle`) brings it back; with the icon visible, it opens the file.
+**Settings…** in the menu bar menu (or launching the app again from the Finder) opens the settings window:
+
+- **Shortcuts:** click the field next to an action and press the keys. Esc cancels, ⌫ clears, the x button clears as well. A shortcut needs ⌃, or ⌥ or ⌘ together with another modifier. If another action already has it, the field refuses it and says which one. A warning sign marks a shortcut that could not be registered, its tooltip says why (usually another app owns it). **Restore Defaults…** brings back the default shortcuts.
+- **General:** launch at login, menu bar icon, the two display options, the size of "almost maximize" and the step for larger and smaller.
+
+With the icon hidden, launching the app again (Finder, `open -a Rectmangle`) brings it back and opens the settings. `open rectmangle://settings` opens them too.
+
+## Configuration file
+
+Everything the settings window does is stored in `~/.config/rectmangle/config.json`, created on first launch. The window rewrites the whole file in a fixed layout. The file can still be edited by hand, changes apply as soon as it is saved.
 
 ```json
 {
@@ -80,7 +90,7 @@ While Rectangle is running, it owns the shortcuts. Quit it first.
 | Key | Meaning |
 |---|---|
 | `almostMaximize` | share of width and height for "almost maximize" |
-| `sizeStep` | pixels per step for larger and smaller |
+| `sizeStep` | points per step for larger and smaller |
 | `halvesAcrossDisplays` | pressing a half again moves to the next display |
 | `moveCursorAcrossDisplays` | the mouse pointer follows the window to another display |
 | `menuBarIcon` | icon in the menu bar |
@@ -91,6 +101,8 @@ Check how the file is understood:
 ```sh
 /Applications/Rectmangle.app/Contents/MacOS/Rectmangle --check
 ```
+
+`RECTMANGLE_CONFIG=/path/to/file.json` makes Rectmangle use another file, for trying things out.
 
 Quit without the menu bar icon: `pkill -x Rectmangle`.
 

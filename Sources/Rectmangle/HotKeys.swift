@@ -34,6 +34,16 @@ struct Shortcut {
         "f7": kVK_F7, "f8": kVK_F8, "f9": kVK_F9, "f10": kVK_F10, "f11": kVK_F11, "f12": kVK_F12,
     ]
 
+    init(keyCode: UInt32, flags: NSEvent.ModifierFlags) {
+        var mods = 0
+        if flags.contains(.control) { mods |= controlKey }
+        if flags.contains(.option) { mods |= optionKey }
+        if flags.contains(.shift) { mods |= shiftKey }
+        if flags.contains(.command) { mods |= cmdKey }
+        self.keyCode = keyCode
+        modifiers = UInt32(mods)
+    }
+
     /// Accepts "⌃⌥←", "ctrl+opt+left", "ctrl+opt+cmd++" or a raw key code like "⌃⌥#30".
     /// Characters are looked up in the current keyboard layout, so "+" means the key that types "+".
     init(parsing text: String, layout: [String: UInt32]) throws {
@@ -57,7 +67,7 @@ struct Shortcut {
         let key = rest.lowercased()
         let code: UInt32? = if let named = Self.namedKeys[key] {
             UInt32(named)
-        } else if key.hasPrefix("#") {
+        } else if key.hasPrefix("#"), key.count > 1 { // a lone "#" is the key that types it
             UInt32(key.dropFirst())
         } else {
             // On layouts without an unshifted "+" (US), fall back to the "=" key like Rectangle does.
@@ -95,6 +105,56 @@ struct Shortcut {
         if modifiers & UInt32(shiftKey) != 0 { flags.insert(.shift) }
         if modifiers & UInt32(cmdKey) != 0 { flags.insert(.command) }
         return (key, flags)
+    }
+
+    /// Names written to the config, the parser reads them back via `namedKeys`.
+    private static let configNames: [Int: String] = [
+        kVK_LeftArrow: "←", kVK_RightArrow: "→", kVK_UpArrow: "↑", kVK_DownArrow: "↓",
+        kVK_Return: "return", kVK_Tab: "tab", kVK_Space: "space", kVK_Delete: "delete",
+        kVK_ForwardDelete: "forwarddelete", kVK_Escape: "escape", kVK_Home: "home", kVK_End: "end",
+        kVK_PageUp: "pageup", kVK_PageDown: "pagedown",
+        kVK_F1: "f1", kVK_F2: "f2", kVK_F3: "f3", kVK_F4: "f4", kVK_F5: "f5", kVK_F6: "f6",
+        kVK_F7: "f7", kVK_F8: "f8", kVK_F9: "f9", kVK_F10: "f10", kVK_F11: "f11", kVK_F12: "f12",
+    ]
+
+    private static let displayNames: [Int: String] = [
+        kVK_LeftArrow: "←", kVK_RightArrow: "→", kVK_UpArrow: "↑", kVK_DownArrow: "↓",
+        kVK_Return: "↩", kVK_Tab: "⇥", kVK_Space: "Space", kVK_Delete: "⌫", kVK_ForwardDelete: "⌦",
+        kVK_Escape: "⎋", kVK_Home: "↖", kVK_End: "↘", kVK_PageUp: "⇞", kVK_PageDown: "⇟",
+        kVK_F1: "F1", kVK_F2: "F2", kVK_F3: "F3", kVK_F4: "F4", kVK_F5: "F5", kVK_F6: "F6",
+        kVK_F7: "F7", kVK_F8: "F8", kVK_F9: "F9", kVK_F10: "F10", kVK_F11: "F11", kVK_F12: "F12",
+    ]
+
+    static func modifierSymbols(_ mods: UInt32) -> String {
+        var text = ""
+        if mods & UInt32(controlKey) != 0 { text += "⌃" }
+        if mods & UInt32(optionKey) != 0 { text += "⌥" }
+        if mods & UInt32(shiftKey) != 0 { text += "⇧" }
+        if mods & UInt32(cmdKey) != 0 { text += "⌘" }
+        return text
+    }
+
+    /// The text for the config file, e.g. "⌃⌥←" or "⌃⌥⌘+".
+    func configText(characters: [UInt32: String]) -> String {
+        let key = Self.configNames[Int(keyCode)] ?? characters[keyCode] ?? "#\(keyCode)"
+        return Self.modifierSymbols(modifiers) + key
+    }
+
+    /// The text for the settings window, e.g. "⌃⌥Space" or "⌃⌥⌘A".
+    func displayText(characters: [UInt32: String]) -> String {
+        let key = Self.displayNames[Int(keyCode)] ?? characters[keyCode]?.uppercased() ?? "#\(keyCode)"
+        return Self.modifierSymbols(modifiers) + key
+    }
+
+    func conflicts(with other: Shortcut) -> Bool {
+        keyCode == other.keyCode && modifiers == other.modifiers
+    }
+
+    /// Maps key codes back to the characters of the current keyboard layout.
+    static func characterMap() -> [UInt32: String] {
+        var characters: [UInt32: String] = [:]
+        for (character, code) in layoutMap() where characters[code] == nil { characters[code] = character }
+        return characters
     }
 
     /// Maps the characters of the current keyboard layout to key codes.

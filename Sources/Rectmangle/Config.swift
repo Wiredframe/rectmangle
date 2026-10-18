@@ -1,8 +1,9 @@
 import Foundation
 
-struct Config: Decodable {
-    static let url = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".config/rectmangle/config.json")
+struct Config: Decodable, Equatable {
+    /// `RECTMANGLE_CONFIG` points to another file, for trying things out without touching the real one.
+    static let url = ProcessInfo.processInfo.environment["RECTMANGLE_CONFIG"].map { URL(fileURLWithPath: $0) }
+        ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/rectmangle/config.json")
 
     var shortcuts: [String: String] = [:]
     var almostMaximizeWidth: Double = 0.9
@@ -57,18 +58,10 @@ struct Config: Decodable {
         }
     }
 
-    /// Changes one true/false key in place, so comments, order and formatting of the file survive.
-    /// The file watcher picks up the change and reloads.
-    static func set(_ key: String, to value: Bool) throws {
-        var text = try String(contentsOf: url, encoding: .utf8)
-        let pattern = try NSRegularExpression(pattern: "(\"\(key)\"\\s*:\\s*)(true|false)")
-        let range = NSRange(text.startIndex..., in: text)
-        if pattern.firstMatch(in: text, range: range) != nil {
-            text = pattern.stringByReplacingMatches(in: text, range: range, withTemplate: "$1\(value)")
-        } else if let brace = text.firstIndex(of: "{") {
-            text.insert(contentsOf: "\n  \"\(key)\": \(value),", at: text.index(after: brace))
-        }
-        try text.write(to: url, atomically: true, encoding: .utf8)
+    /// Writes the whole config in a fixed layout. The file watcher picks up the change as well.
+    static func save(_ config: Config) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try config.text.write(to: url, atomically: true, encoding: .utf8)
     }
 
     struct LoadError: LocalizedError {
@@ -89,44 +82,48 @@ struct Config: Decodable {
         }
     }
 
-    static let defaultText = """
-    {
-      "shortcuts": {
-        "leftHalf": "⌃⌥←",
-        "rightHalf": "⌃⌥→",
-        "centerHalf": "",
-        "topHalf": "⌃⌥⇧⌘↑",
-        "bottomHalf": "⌃⌥⇧⌘↓",
+    static let defaultShortcuts: [String: String] = [
+        "leftHalf": "⌃⌥←", "rightHalf": "⌃⌥→", "topHalf": "⌃⌥⇧⌘↑", "bottomHalf": "⌃⌥⇧⌘↓",
+        "lastThird": "⌃⌥⌘→", "firstTwoThirds": "⌃⌥⌘←",
+        "maximize": "⌃⌥↑", "almostMaximize": "⌃⌥⌘↑", "larger": "⌃⌥⌘+", "smaller": "⌃⌥⌘-",
+        "center": "⌃⌥⌘↓", "restore": "⌃⌥↓",
+        "nextDisplay": "⌃⌘→", "previousDisplay": "⌃⌘←",
+    ]
 
-        "topLeft": "",
-        "topRight": "",
-        "bottomLeft": "",
-        "bottomRight": "",
-
-        "firstThird": "",
-        "centerThird": "",
-        "lastThird": "⌃⌥⌘→",
-        "firstTwoThirds": "⌃⌥⌘←",
-        "lastTwoThirds": "",
-
-        "maximize": "⌃⌥↑",
-        "almostMaximize": "⌃⌥⌘↑",
-        "maximizeHeight": "",
-        "larger": "⌃⌥⌘+",
-        "smaller": "⌃⌥⌘-",
-        "center": "⌃⌥⌘↓",
-        "restore": "⌃⌥↓",
-
-        "nextDisplay": "⌃⌘→",
-        "previousDisplay": "⌃⌘←"
-      },
-      "almostMaximize": { "width": 0.9, "height": 0.9 },
-      "sizeStep": 30,
-      "halvesAcrossDisplays": true,
-      "moveCursorAcrossDisplays": true,
-      "menuBarIcon": true,
-      "launchAtLogin": false
+    static var defaults: Config {
+        var config = Config()
+        config.shortcuts = defaultShortcuts
+        return config
     }
 
-    """
+    static var defaultText: String { defaults.text }
+
+    /// The file contents: every action in menu order, so the file doubles as a list of what exists.
+    var text: String {
+        func string(_ value: String) -> String {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .withoutEscapingSlashes
+            return (try? encoder.encode(value)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+        }
+        func number(_ value: Double) -> String {
+            value == value.rounded() ? String(Int(value)) : String(format: "%g", value)
+        }
+        let groups = Action.menuGroups.map { group in
+            group.map { "    \(string($0.rawValue)): \(string(shortcuts[$0.rawValue] ?? ""))" }.joined(separator: ",\n")
+        }
+        return """
+        {
+          "shortcuts": {
+        \(groups.joined(separator: ",\n\n"))
+          },
+          "almostMaximize": { "width": \(number(almostMaximizeWidth)), "height": \(number(almostMaximizeHeight)) },
+          "sizeStep": \(number(sizeStep)),
+          "halvesAcrossDisplays": \(halvesAcrossDisplays),
+          "moveCursorAcrossDisplays": \(moveCursorAcrossDisplays),
+          "menuBarIcon": \(menuBarIcon),
+          "launchAtLogin": \(launchAtLogin)
+        }
+
+        """
+    }
 }

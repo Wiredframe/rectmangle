@@ -3,6 +3,8 @@
 Minimal Rectangle clone (arrange windows with shortcuts), Swift/AppKit via SwiftPM, no network access, Apple Silicon only. Build with `./build.sh`, install a test copy with `./build.sh --install` (to `~/Applications`).
 
 - Shortcuts: Carbon `RegisterEventHotKey` (`HotKeys.swift`), windows: Accessibility API (`Window.swift`), logic: `WindowManager.swift`. Everything is computed in AX coordinates (origin top left of the main display).
+- Settings window: `SettingsWindow.swift` (tabs Shortcuts and General, action icons), recorder `ShortcutField.swift`. It edits a copy of the config and saves the whole file via `Config.save` (fixed layout from `Config.text`), the file stays the single source of truth. While a field records, the global hotkeys are unregistered.
+- Screenshots of the settings window without driving the UI: `open -a ~/Applications/Rectmangle.app "rectmangle://settings/general"` (plain `open rectmangle://…` may launch the copy in `/Applications`), window id via `CGWindowListCopyWindowInfo`, then `screencapture -o -l <id>`. `RECTMANGLE_CONFIG=<file> Rectmangle --check` writes and checks a config elsewhere.
 - Config `~/.config/rectmangle/config.json`, defaults in `Config.swift`. The default shortcuts match the user's former Rectangle settings (from `defaults read com.knollsoft.Rectangle`, 2026-10-18).
 - Signed with a Developer ID so Accessibility access survives builds. Not notarized.
 - `Rectmangle --check` shows how the config is understood.

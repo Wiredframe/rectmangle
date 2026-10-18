@@ -12,25 +12,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var alertShown = false
     private var config = Config()
     private var active: [Action: Shortcut] = [:]
+    private var problems: [String: String] = [:] // action name → why its shortcut is not active
+    private var shownProblems: [String] = []
+    private var settings: SettingsWindow?
+    private var recording = false
+    private var loadError: String? // set while the file cannot be read, saving would overwrite hand edits
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AXPermission.ensureTrusted(prompt: true)
+        NSApp.mainMenu = mainMenu()
         reload()
         directoryWatcher = watch(Config.url.deletingLastPathComponent(), events: .write)
         watchFile()
     }
 
-    /// Launching the app again while it runs (Finder, `open -a Rectmangle`) brings back a hidden menu bar icon,
-    /// otherwise it opens the config.
+    /// Launching the app again while it runs (Finder, `open -a Rectmangle`) opens the settings
+    /// and brings back a hidden menu bar icon.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if config.menuBarIcon { openConfig() } else { setConfig("menuBarIcon", to: true) }
+        if !config.menuBarIcon { change { $0.menuBarIcon = true } }
+        showSettings()
         return false
     }
 
-    /// `open -g rectmangle://leftHalf` runs an action, for scripts and launchers.
+    /// `open -g rectmangle://leftHalf` runs an action, for scripts and launchers. `rectmangle://settings` opens the settings,
+    /// `rectmangle://settings/general` its second tab.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "rectmangle" {
-            if let name = url.host, let action = Action(rawValue: name) {
+            if url.host == "settings" {
+                showSettings(tab: url.path == "/general" ? 1 : nil)
+            } else if let name = url.host, let action = Action(rawValue: name) {
                 windows.perform(action)
             } else {
                 NSSound.beep()
@@ -41,49 +51,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Config
 
     private func reload() {
-        let config: Config
         do {
-            config = try Config.load()
+            let config = try Config.load()
+            loadError = nil
+            apply(config)
         } catch {
+            loadError = error.localizedDescription
             showAlert(String(localized: "Could not read \(Config.url.path)"), error.localizedDescription)
-            return
         }
+    }
 
+    private func apply(_ config: Config) {
         self.config = config
         windows.config = config
+        registerHotKeys()
+        if recording { hotKeys.unregisterAll() } // a reload while the settings record a shortcut
+        updateStatusItem(visible: config.menuBarIcon)
+        updateLoginItem(enabled: config.launchAtLogin)
+        settings?.update(config: config, problems: problems)
+
+        // Saving the file triggers a reload with the same result, which must not alert twice.
+        let list = problems.sorted { $0.key < $1.key }.map { "\($0.key): \($0.value)" }
+        guard list != shownProblems else { return }
+        shownProblems = list
+        if !list.isEmpty, settings?.isVisible != true {
+            showAlert(String(localized: "Some shortcuts are not active"), list.joined(separator: "\n"))
+        }
+    }
+
+    private func registerHotKeys() {
         hotKeys.unregisterAll()
         active = [:]
-        var problems: [String] = []
+        problems = [:]
         var used: [String: String] = [:] // "keyCode/modifiers" → action
         let layout = Shortcut.layoutMap()
+        let characters = Shortcut.characterMap()
 
         for (name, text) in config.shortcuts.sorted(by: { $0.key < $1.key }) {
             guard let action = Action(rawValue: name) else {
-                problems.append("Unknown action \"\(name)\"")
+                problems[name] = String(localized: "Unknown action")
                 continue
             }
             if text.trimmingCharacters(in: .whitespaces).isEmpty { continue }
             do {
                 let shortcut = try Shortcut(parsing: text, layout: layout)
                 let key = "\(shortcut.keyCode)/\(shortcut.modifiers)"
+                let display = shortcut.displayText(characters: characters)
                 if let other = used[key] {
-                    problems.append("\(name): \(text) is already used for \(other)")
+                    let title = Action(rawValue: other)?.title ?? other
+                    problems[name] = String(localized: "\(display) is already used for \(title)")
                 } else if hotKeys.register(shortcut, handler: { [weak self] in self?.windows.perform(action) }) {
                     used[key] = name
                     active[action] = shortcut
                 } else {
-                    problems.append("\(name): \(text) is already taken by another app")
+                    problems[name] = String(localized: "\(display) is already taken by another app")
                 }
             } catch {
-                problems.append("\(name): \(error.localizedDescription)")
+                problems[name] = error.localizedDescription
             }
-        }
-
-        updateStatusItem(visible: config.menuBarIcon)
-        updateLoginItem(enabled: config.launchAtLogin)
-
-        if !problems.isEmpty {
-            showAlert(String(localized: "Some shortcuts are not active"), problems.joined(separator: "\n"))
         }
     }
 
@@ -123,8 +148,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSWorkspace.shared.open(Config.url)
     }
 
-    @objc private func reloadFromMenu() {
-        reload()
+    @objc private func showSettingsFromMenu() {
+        showSettings()
+    }
+
+    private func showSettings(tab: Int? = nil) {
+        if settings == nil {
+            let settings = SettingsWindow()
+            settings.onChange = { [weak self] config in self?.save(config) }
+            settings.onOpenFile = { [weak self] in self?.openConfig() }
+            // Registered hotkeys would catch the keys before the recorder sees them.
+            settings.onRecording = { [weak self] recording in
+                self?.recording = recording
+                if recording { self?.hotKeys.unregisterAll() } else { self?.registerHotKeys() }
+            }
+            self.settings = settings
+        }
+        settings?.update(config: config, problems: problems)
+        settings?.show(tab: tab)
     }
 
     @objc private func grantAccess() {
@@ -137,17 +178,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func toggleLogin() {
-        setConfig("launchAtLogin", to: !config.launchAtLogin)
+        change { $0.launchAtLogin.toggle() }
     }
 
     @objc private func hideStatusItem() {
-        setConfig("menuBarIcon", to: false)
+        change { $0.menuBarIcon = false }
     }
 
-    /// The config stays the single source of truth: menu toggles write it, the file watcher applies the change.
-    private func setConfig(_ key: String, to value: Bool) {
+    private func change(_ edit: (inout Config) -> Void) {
+        var config = self.config
+        edit(&config)
+        save(config)
+    }
+
+    /// The config file stays the single source of truth: the menu and the settings window write it.
+    /// The change applies at once, the file watcher's reload that follows finds nothing new.
+    private func save(_ config: Config) {
+        if let loadError {
+            showAlert(String(localized: "Could not read \(Config.url.path)"), loadError)
+            return
+        }
         do {
-            try Config.set(key, to: value)
+            try Config.save(config)
+            apply(config)
         } catch {
             showAlert(String(localized: "Could not write \(Config.url.path)"), error.localizedDescription)
         }
@@ -180,8 +233,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         // The status menu does not activate Rectmangle, so the frontmost window is still the one to arrange.
-        var characters: [UInt32: String] = [:]
-        for (character, code) in Shortcut.layoutMap() where characters[code] == nil { characters[code] = character }
+        let characters = Shortcut.characterMap()
         for group in Action.menuGroups {
             for action in group {
                 let item = menu.addItem(withTitle: action.title, action: #selector(performFromMenu(_:)), keyEquivalent: "")
@@ -203,13 +255,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                 keyEquivalent: "")
         hide.target = self
         hide.toolTip = String(localized: "Launch Rectmangle again from the Finder to bring it back.")
-        menu.addItem(withTitle: String(localized: "Edit Config…"), action: #selector(openConfig), keyEquivalent: "")
-            .target = self
-        menu.addItem(withTitle: String(localized: "Reload Config"), action: #selector(reloadFromMenu), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "Settings…"), action: #selector(showSettingsFromMenu), keyEquivalent: ",")
             .target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: String(localized: "Quit Rectmangle"), action: #selector(NSApplication.terminate(_:)),
                      keyEquivalent: "q")
+    }
+
+    /// Not visible for a menu bar app, but it gives the settings window ⌘W and ⌘Q.
+    private func mainMenu() -> NSMenu {
+        let main = NSMenu()
+        let app = NSMenu()
+        app.addItem(withTitle: String(localized: "Settings…"), action: #selector(showSettingsFromMenu), keyEquivalent: ",")
+            .target = self
+        app.addItem(withTitle: String(localized: "Close Window"), action: #selector(NSWindow.performClose(_:)),
+                    keyEquivalent: "w")
+        app.addItem(withTitle: String(localized: "Quit Rectmangle"), action: #selector(NSApplication.terminate(_:)),
+                    keyEquivalent: "q")
+        main.addItem(withTitle: "Rectmangle", action: nil, keyEquivalent: "").submenu = app
+        return main
     }
 
     private func updateLoginItem(enabled: Bool) {
