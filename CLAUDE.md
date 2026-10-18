@@ -6,3 +6,5 @@ Minimaler Nachbau von Rectangle (Fenster per Kürzel anordnen), Swift/AppKit per
 - Konfiguration `~/.config/rectmangle/config.json`, Standard in `Config.swift`. Die Kürzel dort entsprechen den Rectangle-Einstellungen des Nutzers (aus `defaults read com.knollsoft.Rectangle`, Stand 2026-10-18).
 - Signiert mit Developer ID, damit die Bedienungshilfen-Freigabe Builds überlebt.
 - `Rectmangle --check` zeigt, wie die Konfiguration verstanden wird.
+- Testen ohne Tastendruck: `open -g rectmangle://<aktion>` an der laufenden Instanz, Fenstergröße per AppleScript an Finder prüfen (System Events darf Claude nicht steuern).
+- Release: Version in `Resources/Info.plist`, `./build.sh --zip` (prüft die Signatur nach dem Auspacken), Commit, Tag `vX.Y.Z`, `gh release create vX.Y.Z build/Rectmangle-X.Y.Z.zip`. Nicht notarisiert, die Issuer-ID zum ASC-Schlüssel `ZT3NP2DJ5P` fehlt.
