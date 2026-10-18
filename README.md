@@ -99,6 +99,8 @@ Jede Aktion lässt sich per URL auslösen, etwa aus Raycast, Alfred oder der App
 open -g rectmangle://leftHalf
 ```
 
+Das Schema kann jede App auf dem Mac aufrufen, eine Website nur nach Rückfrage des Browsers. Mehr als Fenster des aktiven Programms verschieben lässt sich darüber nicht.
+
 ## Privatsphäre
 
 Rectmangle enthält keinen Netzwerkcode:

@@ -11,13 +11,15 @@ struct Window {
     static func focused() -> Window? {
         guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return nil }
         let app = AXUIElementCreateApplication(pid)
-        // An app that hangs must not block the hotkeys for long.
+        // An app that hangs must not block the hotkeys for long. The timeout is per element.
         AXUIElementSetMessagingTimeout(app, 1)
         for attribute in [kAXFocusedWindowAttribute, kAXMainWindowAttribute] {
             var value: CFTypeRef?
             if AXUIElementCopyAttributeValue(app, attribute as CFString, &value) == .success,
                let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
-                return Window(element: value as! AXUIElement, app: app)
+                let element = value as! AXUIElement
+                AXUIElementSetMessagingTimeout(element, 1)
+                return Window(element: element, app: app)
             }
         }
         return nil

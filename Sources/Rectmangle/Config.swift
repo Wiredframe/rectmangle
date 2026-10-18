@@ -36,6 +36,11 @@ struct Config: Decodable {
         moveCursorAcrossDisplays = try c.decodeIfPresent(Bool.self, forKey: .moveCursorAcrossDisplays) ?? moveCursorAcrossDisplays
         menuBarIcon = try c.decodeIfPresent(Bool.self, forKey: .menuBarIcon) ?? menuBarIcon
         launchAtLogin = try c.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? launchAtLogin
+
+        // Out of range values would produce windows that are invisible or larger than any screen.
+        almostMaximizeWidth = min(max(almostMaximizeWidth, 0.2), 1)
+        almostMaximizeHeight = min(max(almostMaximizeHeight, 0.2), 1)
+        sizeStep = min(max(sizeStep, 1), 500)
     }
 
     /// Reads the config, writing the default one first if there is none yet.

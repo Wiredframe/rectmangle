@@ -57,6 +57,9 @@ final class WindowManager {
         let screens = Screen.all()
         guard let screen = screens.max(by: { overlap($0.frame, frame) < overlap($1.frame, frame) }),
               let index = screens.firstIndex(of: screen) else { return }
+        // Window ids of closed windows are never reused soon, but the lists should not grow forever.
+        if records.count > 500 { records.removeAll() }
+        if restoreFrames.count > 500 { restoreFrames.removeAll() }
 
         let id = window.id
         let record = id.flatMap { records[$0] }
@@ -96,10 +99,9 @@ final class WindowManager {
 
         case .leftHalf, .rightHalf:
             // Like Rectangle: pressing a half again moves the window on to the neighbouring display.
-            let step = action == .leftHalf ? -1 : 1
             if config.halvesAcrossDisplays, untouched, record?.action == action,
-               screens.indices.contains(index + step) {
-                target = screens[index + step]
+               let neighbour = neighbour(of: screen, in: screens, toTheLeft: action == .leftHalf) {
+                target = neighbour
                 placed = action == .leftHalf ? .rightHalf : .leftHalf
             }
             rect = self.rect(for: placed, frame: frame, in: target.visible)
@@ -190,6 +192,19 @@ final class WindowManager {
         let rx = relative(frame.minX, s.minX, s.width - frame.width)
         let ry = relative(frame.minY, s.minY, s.height - frame.height)
         return CGRect(x: t.minX + rx * (t.width - w), y: t.minY + ry * (t.height - h), width: w, height: h).integral
+    }
+
+    /// The closest display beside this one that shares part of its height, so stacked displays don't count.
+    private func neighbour(of screen: Screen, in screens: [Screen], toTheLeft: Bool) -> Screen? {
+        let f = screen.frame
+        return screens
+            .filter { $0 != screen && $0.frame.maxY > f.minY && $0.frame.minY < f.maxY }
+            .filter { toTheLeft ? $0.frame.maxX <= f.minX + 2 : $0.frame.minX >= f.maxX - 2 }
+            .min { gap($0.frame, f) < gap($1.frame, f) }
+    }
+
+    private func gap(_ a: CGRect, _ b: CGRect) -> CGFloat {
+        max(a.minX - b.maxX, b.minX - a.maxX)
     }
 
     private func fit(_ frame: CGRect, into v: CGRect) -> CGRect {

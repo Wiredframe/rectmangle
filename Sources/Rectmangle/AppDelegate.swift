@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var directoryWatcher: DispatchSourceFileSystemObject?
     private var fileWatcher: DispatchSourceFileSystemObject?
     private var reloadPending = false
+    private var alertShown = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AXPermission.ensureTrusted(prompt: true)
@@ -167,7 +168,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// One alert at a time: saving the config again while an alert is open must not stack them.
     private func showAlert(_ title: String, _ message: String) {
+        guard !alertShown else { return }
+        alertShown = true
+        defer { alertShown = false }
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = title
