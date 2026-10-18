@@ -27,7 +27,7 @@ xattr -dr com.apple.quarantine ~/Applications/Rectmangle.app
 
 ## Bauen und installieren
 
-Braucht die Command Line Tools von Xcode (Swift 5.9 oder neuer), macOS 13 oder neuer.
+Braucht einen Mac mit Apple Silicon, macOS 13 oder neuer und die Command Line Tools von Xcode (Swift 5.9 oder neuer).
 
 ```sh
 ./build.sh            # baut build/Rectmangle.app

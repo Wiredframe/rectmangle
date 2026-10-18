@@ -3,8 +3,8 @@
 set -euo pipefail
 cd "${0:A:h}"
 
-# Universal: Apple Silicon und Intel.
-ARCHS=(--arch arm64 --arch x86_64)
+# Nur Apple Silicon, Intel wird nicht mehr gebaut.
+ARCHS=(--arch arm64)
 swift build -c release --disable-sandbox $ARCHS
 BIN="$(swift build -c release --disable-sandbox $ARCHS --show-bin-path)/Rectmangle"
 
