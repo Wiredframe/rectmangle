@@ -9,4 +9,5 @@ Minimal Rectangle clone (arrange windows with shortcuts), Swift/AppKit via Swift
 - Testing without key presses: `open -g rectmangle://<action>` against the running instance, read the window bounds of a Finder window via AppleScript (Claude may not drive System Events).
 - Release: version in `Resources/Info.plist`, `./build.sh --zip` (verifies the signature after unzipping), commit, tag `vX.Y.Z`, `gh release create vX.Y.Z build/Rectmangle-X.Y.Z.zip`, then in the tap `~/Projekte/Claude Code/homebrew-tap` update version and sha256 in `Casks/rectmangle.rb`, commit `rectmangle X.Y.Z`, `brew upgrade --cask rectmangle`.
 - The user runs the Homebrew cask from `/Applications` (since 2026-10-18). `./build.sh --install` puts a second copy in `~/Applications`: for testing only, remove it afterwards and relaunch `/Applications/Rectmangle.app`, otherwise the login item points to the test copy.
-- Docs, UI, release notes and comments are in English.
+- Docs, UI, release notes and comments are in English, the menu has a German translation in `Resources/de.lproj` (keys are the English texts).
+- App icon: `swift scripts/make-icon.swift docs/icon.png`, then turn it into `Resources/AppIcon.icns` with `sips` and `iconutil`.

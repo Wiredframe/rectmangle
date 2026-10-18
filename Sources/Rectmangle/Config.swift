@@ -57,6 +57,20 @@ struct Config: Decodable {
         }
     }
 
+    /// Changes one true/false key in place, so comments, order and formatting of the file survive.
+    /// The file watcher picks up the change and reloads.
+    static func set(_ key: String, to value: Bool) throws {
+        var text = try String(contentsOf: url, encoding: .utf8)
+        let pattern = try NSRegularExpression(pattern: "(\"\(key)\"\\s*:\\s*)(true|false)")
+        let range = NSRange(text.startIndex..., in: text)
+        if pattern.firstMatch(in: text, range: range) != nil {
+            text = pattern.stringByReplacingMatches(in: text, range: range, withTemplate: "$1\(value)")
+        } else if let brace = text.firstIndex(of: "{") {
+            text.insert(contentsOf: "\n  \"\(key)\": \(value),", at: text.index(after: brace))
+        }
+        try text.write(to: url, atomically: true, encoding: .utf8)
+    }
+
     struct LoadError: LocalizedError {
         let errorDescription: String?
     }

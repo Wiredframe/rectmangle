@@ -1,5 +1,5 @@
 import Carbon
-import Foundation
+import AppKit
 
 struct Shortcut {
     let keyCode: UInt32
@@ -66,6 +66,35 @@ struct Shortcut {
         guard let code else { throw ParseError(errorDescription: "unknown key \"\(rest)\" in \"\(text)\"") }
         keyCode = code
         modifiers = UInt32(mods)
+    }
+
+    private static let menuKeys: [Int: Int] = [
+        kVK_LeftArrow: NSLeftArrowFunctionKey, kVK_RightArrow: NSRightArrowFunctionKey,
+        kVK_UpArrow: NSUpArrowFunctionKey, kVK_DownArrow: NSDownArrowFunctionKey,
+        kVK_Return: 0x0D, kVK_Tab: 0x09, kVK_Space: 0x20, kVK_Delete: 0x08, kVK_ForwardDelete: NSDeleteFunctionKey,
+        kVK_Escape: 0x1B, kVK_Home: NSHomeFunctionKey, kVK_End: NSEndFunctionKey,
+        kVK_PageUp: NSPageUpFunctionKey, kVK_PageDown: NSPageDownFunctionKey,
+        kVK_F1: NSF1FunctionKey, kVK_F2: NSF2FunctionKey, kVK_F3: NSF3FunctionKey, kVK_F4: NSF4FunctionKey,
+        kVK_F5: NSF5FunctionKey, kVK_F6: NSF6FunctionKey, kVK_F7: NSF7FunctionKey, kVK_F8: NSF8FunctionKey,
+        kVK_F9: NSF9FunctionKey, kVK_F10: NSF10FunctionKey, kVK_F11: NSF11FunctionKey, kVK_F12: NSF12FunctionKey,
+    ]
+
+    /// The shortcut as a menu key equivalent, so the menu can show it. `characters` maps key codes back to the layout.
+    func menuKey(characters: [UInt32: String]) -> (key: String, modifiers: NSEvent.ModifierFlags)? {
+        let key: String
+        if let special = Self.menuKeys[Int(keyCode)], let scalar = UnicodeScalar(special) {
+            key = String(Character(scalar))
+        } else if let character = characters[keyCode] {
+            key = character
+        } else {
+            return nil
+        }
+        var flags: NSEvent.ModifierFlags = []
+        if modifiers & UInt32(controlKey) != 0 { flags.insert(.control) }
+        if modifiers & UInt32(optionKey) != 0 { flags.insert(.option) }
+        if modifiers & UInt32(shiftKey) != 0 { flags.insert(.shift) }
+        if modifiers & UInt32(cmdKey) != 0 { flags.insert(.command) }
+        return (key, flags)
     }
 
     /// Maps the characters of the current keyboard layout to key codes.

@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var fileWatcher: DispatchSourceFileSystemObject?
     private var reloadPending = false
     private var alertShown = false
+    private var config = Config()
+    private var active: [Action: Shortcut] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AXPermission.ensureTrusted(prompt: true)
@@ -18,9 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         watchFile()
     }
 
-    /// Launching the app again while it runs opens the config, so it stays reachable without a menu bar icon.
+    /// Launching the app again while it runs (Finder, `open -a Rectmangle`) brings back a hidden menu bar icon,
+    /// otherwise it opens the config.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        openConfig()
+        if config.menuBarIcon { openConfig() } else { setConfig("menuBarIcon", to: true) }
         return false
     }
 
@@ -42,12 +45,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             config = try Config.load()
         } catch {
-            showAlert("Could not read \(Config.url.path)", error.localizedDescription)
+            showAlert(String(localized: "Could not read \(Config.url.path)"), error.localizedDescription)
             return
         }
 
+        self.config = config
         windows.config = config
         hotKeys.unregisterAll()
+        active = [:]
         var problems: [String] = []
         var used: [String: String] = [:] // "keyCode/modifiers" → action
         let layout = Shortcut.layoutMap()
@@ -65,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     problems.append("\(name): \(text) is already used for \(other)")
                 } else if hotKeys.register(shortcut, handler: { [weak self] in self?.windows.perform(action) }) {
                     used[key] = name
+                    active[action] = shortcut
                 } else {
                     problems.append("\(name): \(text) is already taken by another app")
                 }
@@ -77,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateLoginItem(enabled: config.launchAtLogin)
 
         if !problems.isEmpty {
-            showAlert("Some shortcuts are not active", problems.joined(separator: "\n"))
+            showAlert(String(localized: "Some shortcuts are not active"), problems.joined(separator: "\n"))
         }
     }
 
@@ -125,6 +131,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         AXPermission.ensureTrusted(prompt: true)
     }
 
+    @objc private func performFromMenu(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String, let action = Action(rawValue: name) else { return }
+        windows.perform(action)
+    }
+
+    @objc private func toggleLogin() {
+        setConfig("launchAtLogin", to: !config.launchAtLogin)
+    }
+
+    @objc private func hideStatusItem() {
+        setConfig("menuBarIcon", to: false)
+    }
+
+    /// The config stays the single source of truth: menu toggles write it, the file watcher applies the change.
+    private func setConfig(_ key: String, to value: Bool) {
+        do {
+            try Config.set(key, to: value)
+        } catch {
+            showAlert(String(localized: "Could not write \(Config.url.path)"), error.localizedDescription)
+        }
+    }
+
     // MARK: Menu bar and login item
 
     private func updateStatusItem(visible: Bool) {
@@ -142,17 +170,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = item
     }
 
-    /// Built on every open, so the access item disappears once access is granted.
+    /// Built on every open, so shortcuts and the access item always match the current state.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if !AXIsProcessTrusted() {
-            menu.addItem(withTitle: "Grant Accessibility Access…", action: #selector(grantAccess), keyEquivalent: "").target = self
+            menu.addItem(withTitle: String(localized: "Grant Accessibility Access…"), action: #selector(grantAccess),
+                         keyEquivalent: "").target = self
             menu.addItem(.separator())
         }
-        menu.addItem(withTitle: "Edit Config…", action: #selector(openConfig), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "Reload Config", action: #selector(reloadFromMenu), keyEquivalent: "r").target = self
+
+        // The status menu does not activate Rectmangle, so the frontmost window is still the one to arrange.
+        var characters: [UInt32: String] = [:]
+        for (character, code) in Shortcut.layoutMap() where characters[code] == nil { characters[code] = character }
+        for group in Action.menuGroups {
+            for action in group {
+                let item = menu.addItem(withTitle: action.title, action: #selector(performFromMenu(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = action.rawValue
+                if let key = active[action]?.menuKey(characters: characters) {
+                    item.keyEquivalent = key.key
+                    item.keyEquivalentModifierMask = key.modifiers
+                }
+            }
+            menu.addItem(.separator())
+        }
+
+        let login = menu.addItem(withTitle: String(localized: "Launch at Login"), action: #selector(toggleLogin),
+                                 keyEquivalent: "")
+        login.target = self
+        login.state = config.launchAtLogin ? .on : .off
+        let hide = menu.addItem(withTitle: String(localized: "Hide Menu Bar Icon"), action: #selector(hideStatusItem),
+                                keyEquivalent: "")
+        hide.target = self
+        hide.toolTip = String(localized: "Launch Rectmangle again from the Finder to bring it back.")
+        menu.addItem(withTitle: String(localized: "Edit Config…"), action: #selector(openConfig), keyEquivalent: "")
+            .target = self
+        menu.addItem(withTitle: String(localized: "Reload Config"), action: #selector(reloadFromMenu), keyEquivalent: "")
+            .target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Rectmangle", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: String(localized: "Quit Rectmangle"), action: #selector(NSApplication.terminate(_:)),
+                     keyEquivalent: "q")
     }
 
     private func updateLoginItem(enabled: Bool) {
@@ -178,6 +235,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.messageText = title
         alert.informativeText = message
         alert.runModal()
+    }
+}
+
+extension Action {
+    static let menuGroups: [[Action]] = [
+        [.leftHalf, .rightHalf, .centerHalf, .topHalf, .bottomHalf],
+        [.topLeft, .topRight, .bottomLeft, .bottomRight],
+        [.firstThird, .centerThird, .lastThird, .firstTwoThirds, .lastTwoThirds],
+        [.maximize, .almostMaximize, .maximizeHeight, .larger, .smaller, .center, .restore],
+        [.nextDisplay, .previousDisplay],
+    ]
+
+    var title: String {
+        switch self {
+        case .leftHalf: String(localized: "Left Half")
+        case .rightHalf: String(localized: "Right Half")
+        case .centerHalf: String(localized: "Center Half")
+        case .topHalf: String(localized: "Top Half")
+        case .bottomHalf: String(localized: "Bottom Half")
+        case .topLeft: String(localized: "Top Left")
+        case .topRight: String(localized: "Top Right")
+        case .bottomLeft: String(localized: "Bottom Left")
+        case .bottomRight: String(localized: "Bottom Right")
+        case .firstThird: String(localized: "First Third")
+        case .centerThird: String(localized: "Center Third")
+        case .lastThird: String(localized: "Last Third")
+        case .firstTwoThirds: String(localized: "First Two Thirds")
+        case .lastTwoThirds: String(localized: "Last Two Thirds")
+        case .maximize: String(localized: "Maximize")
+        case .almostMaximize: String(localized: "Almost Maximize")
+        case .maximizeHeight: String(localized: "Maximize Height")
+        case .larger: String(localized: "Larger")
+        case .smaller: String(localized: "Smaller")
+        case .center: String(localized: "Center")
+        case .restore: String(localized: "Restore")
+        case .nextDisplay: String(localized: "Next Display")
+        case .previousDisplay: String(localized: "Previous Display")
+        }
     }
 }
 

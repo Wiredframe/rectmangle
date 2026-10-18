@@ -6,7 +6,8 @@ Arrange windows with keyboard shortcuts, modelled on [Rectangle](https://rectang
 - Next and previous display, the mouse pointer follows the window
 - Pressing left or right half a second time moves the window on to the neighbouring display (like Rectangle with "Subsequent execution: across displays")
 - Restore puts the window back to its size and position from before the first shortcut
-- Launch at login, menu bar icon can be hidden
+- Menu bar menu with every action and its shortcut, launch at login, icon can be hidden
+- Menu in English and German, following the system language
 
 Not included: snap areas when dragging to the screen edge, gaps between windows, per-app exceptions.
 
@@ -43,7 +44,7 @@ While Rectangle is running, it owns the shortcuts. Quit it first.
 
 ## Configuration
 
-`~/.config/rectmangle/config.json`, created on first launch. Changes apply as soon as the file is saved. Without the menu bar icon, launching the app again (`open -a Rectmangle`) opens the file.
+`~/.config/rectmangle/config.json`, created on first launch. Changes apply as soon as the file is saved. "Launch at Login" and "Hide Menu Bar Icon" in the menu write to the same file. With the icon hidden, launching the app again (Finder, `open -a Rectmangle`) brings it back; with the icon visible, it opens the file.
 
 ```json
 {

@@ -10,9 +10,11 @@ BIN="$(swift build -c release --disable-sandbox $ARCHS --show-bin-path)/Rectmang
 
 APP=build/Rectmangle.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/"
 cp Resources/Info.plist "$APP/Contents/"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/"
+cp -R Resources/*.lproj "$APP/Contents/Resources/"
 
 # Accessibility access is tied to the code signature. An ad hoc signature changes with every build and
 # loses it, a stable certificate keeps it. SIGN_IDENTITY picks one explicitly.
