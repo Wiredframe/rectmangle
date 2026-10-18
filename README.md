@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon.png" width="128" alt=""></p>
+
 # Rectmangle
 
 Arrange windows with keyboard shortcuts, modelled on [Rectangle](https://rectangleapp.com). Small, no network access, no license check, no updater. One config file instead of a settings window.
