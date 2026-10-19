@@ -5,8 +5,12 @@ cd "${0:A:h}"
 
 # Apple Silicon only.
 ARCHS=(--arch arm64)
-swift build -c release --disable-sandbox $ARCHS
-BIN="$(swift build -c release --disable-sandbox $ARCHS --show-bin-path)/Rectmangle"
+# Otherwise SwiftPM records the deployment target as the SDK version and macOS shows the app in the legacy look
+# (small traffic lights, old controls). Linking with the real SDK version gets the current design.
+SDK="$(xcrun --show-sdk-version)"
+FLAGS=(-c release --disable-sandbox $ARCHS -Xlinker -platform_version -Xlinker macos -Xlinker 13.0 -Xlinker "$SDK")
+swift build "${FLAGS[@]}"
+BIN="$(swift build "${FLAGS[@]}" --show-bin-path)/Rectmangle"
 
 APP=build/Rectmangle.app
 rm -rf "$APP"
